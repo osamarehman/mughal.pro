@@ -1064,12 +1064,16 @@ EOF
     
     # Add DocMost variables if enabled
     if $ENABLE_DOCMOST; then
+        # Escape special characters in URLs by quoting them
+        local escaped_postgres_url="\"$POSTGRES_URL\""
+        local escaped_redis_url="\"$REDIS_URL\""
+        
         cat >> "$output_file" << EOF
 
 # DocMost
 APP_SECRET=$APP_SECRET
-POSTGRES_URL=$POSTGRES_URL
-REDIS_URL=$REDIS_URL
+POSTGRES_URL=$escaped_postgres_url
+REDIS_URL=$escaped_redis_url
 EOF
     fi
     
