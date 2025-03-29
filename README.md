@@ -47,8 +47,8 @@ This project provides a set of scripts to automate the deployment of a self-host
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/server-automation-scripts.git
-   cd server-automation-scripts
+   git clone https://github.com/osamarehman/mughal.pro.git
+   cd mughal.pro
    ```
 
 2. Make the setup script executable:
