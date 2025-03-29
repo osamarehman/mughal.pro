@@ -19,6 +19,8 @@ credentials.txt
 **/session_secret
 **/storage_encryption_key
 
+setup.ps1
+
 # IDE/Editor files
 .vscode/
 .idea/
