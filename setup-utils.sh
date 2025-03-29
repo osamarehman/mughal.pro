@@ -87,7 +87,9 @@ prompt_password() {
         # Ensure generated password is safe for shell scripts
         # Base64 encoding should be safe, but let's make sure
         password=$(echo "$password" | tr -dc 'a-zA-Z0-9_-')
-        echo "Generated password: $password"
+        # Print to stderr so it doesn't get captured in variable assignment
+        echo "Generated password: $password" >&2
+        # Return just the password
         echo "$password"
         return
     fi

@@ -100,8 +100,9 @@ generate_credentials() {
         
         # Set database URLs - these will be properly escaped in the .env file
         # We're using single quotes here to prevent shell expansion of special characters
-        POSTGRES_URL='postgresql://'$POSTGRES_USER':'$POSTGRES_PASSWORD'@postgres:5432/'$POSTGRES_DB
-        REDIS_URL='redis://redis:6379'
+        # Make sure we're using just the password value without any prefix
+        POSTGRES_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+        REDIS_URL="redis://redis:6379"
         print_info "DocMost database URLs set"
     fi
     

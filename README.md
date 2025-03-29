@@ -66,12 +66,12 @@ This project provides a set of scripts to automate the deployment of a self-host
 
 2. Make the setup script executable:
    ```bash
-   chmod +x setup.sh
+   chmod +x setup-main.sh
    ```
 
 3. Run the setup script:
    ```bash
-   sudo ./setup.sh
+   sudo ./setup-main.sh
    ```
 
 4. Follow the interactive prompts to configure your server.
