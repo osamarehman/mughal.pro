@@ -2,6 +2,16 @@
 
 A comprehensive set of scripts for automating the setup and configuration of a Docker-based server with various services, including Caddy as a reverse proxy, Authelia for authentication, and multiple application containers.
 
+## Recent Updates
+
+The scripts have been significantly improved for better reliability and robustness:
+- Enhanced error handling for Docker installation and dependency management
+- Non-blocking execution flow that continues even if some components fail
+- Cross-platform support with robust PowerShell implementation for Windows
+- Improved status tracking and user feedback
+
+See [UPDATES.md](UPDATES.md) for detailed information about these improvements.
+
 ## Overview
 
 This project provides a set of scripts to automate the deployment of a self-hosted server with multiple services. The setup is interactive, prompting the user for necessary information and generating configuration files accordingly.
@@ -38,12 +48,15 @@ This project provides a set of scripts to automate the deployment of a self-host
 
 ## Prerequisites
 
-- Debian 12 or Ubuntu 22.04 LTS
-- Docker and Docker Compose installed
+### Linux (Debian/Ubuntu)
+- Debian 12, Ubuntu 22.04 LTS, or compatible Linux distribution
 - Root or sudo access
 - Domain name with DNS configured
 
+
 ## Quick Start
+
+### Linux
 
 1. Clone the repository:
    ```bash
@@ -58,7 +71,7 @@ This project provides a set of scripts to automate the deployment of a self-host
 
 3. Run the setup script:
    ```bash
-   ./setup.sh
+   sudo ./setup.sh
    ```
 
 4. Follow the interactive prompts to configure your server.
@@ -77,6 +90,7 @@ The setup script will guide you through the configuration process, including:
 
 After setup, the following directory structure will be created:
 
+### Linux
 ```
 /opt/docker/
 ├── authelia/
@@ -103,15 +117,26 @@ After setup, the following directory structure will be created:
 
 ### Adding New Services
 
-To add a new service:
+#### Linux
+To add a new service on Linux:
 
 1. Edit `docker-compose-services.sh` to add the service definition
 2. Update `config-generator.sh` to add any necessary configuration files
 3. Modify `setup.sh` to include prompts for the new service
 
+
 ### Modifying Existing Services
 
 See [MODIFYING_APPS.md](MODIFYING_APPS.md) for detailed instructions on how to modify existing services.
+
+### Cross-Platform Development
+
+When making changes to the scripts:
+
+1. Ensure changes are implemented in both the Bash (Linux) and PowerShell (Windows) versions
+2. Test changes on both platforms if possible
+3. Keep configuration file formats consistent between platforms
+4. Use platform-specific paths and commands where necessary
 
 ## Troubleshooting
 
@@ -119,13 +144,23 @@ For common issues and their solutions, see [troubleshooting_checklist.md](troubl
 
 ## Backup and Restore
 
-The setup includes Borgmatic for backups. By default, it's configured to:
+### Linux
+The Linux setup includes Borgmatic for backups. By default, it's configured to:
 
 - Back up all database data
 - Back up all configuration files
 - Run on a daily schedule
 
 To customize the backup configuration, edit the Borgmatic configuration files in `/opt/docker/borgmatic/config/`.
+
+### Additional Backup Options
+
+For both platforms, you can also:
+
+- Configure remote backup repositories
+- Set up encryption for your backups
+- Customize retention policies
+- Set up email notifications for backup status
 
 ## Security Considerations
 
