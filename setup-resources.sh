@@ -60,7 +60,7 @@ generate_caddy_config() {
     cat > "$config_dir/Caddyfile" << EOF
 {
     # Global options
-    email $email
+    email "$email"
     admin off
 }
 
@@ -292,14 +292,14 @@ users:
   $admin_user:
     displayname: "Administrator"
     password: "$admin_hash"
-    email: $email
+    email: "$email"
     groups:
       - admins
   
   $user_user:
     displayname: "Regular User"
     password: "$user_hash"
-    email: $email
+    email: "$email"
     groups:
       - users
 EOF
