@@ -1,0 +1,43 @@
+# Docker
+/data/
+/backup/
+/docker-compose.yml
+/.env
+*.log
+*.swp
+*.bak
+
+# Sensitive files
+credentials.txt
+**/config/secrets.*
+**/*.key
+**/*.crt
+**/*.pem
+**/users_database.yml
+**/.htpasswd
+**/jwt_secret
+**/session_secret
+**/storage_encryption_key
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+
+# Borgmatic backups
+/backup/repository/
+/data/db_dumps/
+/opt/docker/borgmatic/config/ssh/
+/opt/docker/borgmatic/cache/
+
+# Temporary files
+temp_*
+.cache
+.tmp/
+
+# Generated files
+/opt/docker/compose/.env
+/opt/docker/*/generated_*
