@@ -55,27 +55,37 @@ check_root() {
     fi
 }
 
-# Check if Docker is installed
+# Check and install Docker if needed
 check_docker() {
     if ! command -v docker &> /dev/null; then
-        print_error "Docker is not installed"
-        print_info "Please install Docker before running this script"
-        print_info "You can install Docker using the following command:"
-        echo "curl -fsSL https://get.docker.com | sh"
-        exit 1
+        print_warning "Docker is not installed. Installing Docker..."
+        if prompt_yes_no "Do you want to install Docker?"; then
+            curl -fsSL https://get.docker.com | sh
+            print_success "Docker installed successfully"
+        else
+            print_error "Docker is required to continue"
+            exit 1
+        fi
+    else
+        print_info "Docker is already installed"
     fi
     
     if ! command -v docker-compose &> /dev/null; then
-        print_error "Docker Compose is not installed"
-        print_info "Please install Docker Compose before running this script"
-        print_info "You can install Docker Compose using the following command:"
-        echo "curl -L \"https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)\" -o /usr/local/bin/docker-compose"
-        echo "chmod +x /usr/local/bin/docker-compose"
-        exit 1
+        print_warning "Docker Compose is not installed. Installing Docker Compose..."
+        if prompt_yes_no "Do you want to install Docker Compose?"; then
+            curl -L "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            chmod +x /usr/local/bin/docker-compose
+            print_success "Docker Compose installed successfully"
+        else
+            print_error "Docker Compose is required to continue"
+            exit 1
+        fi
+    else
+        print_info "Docker Compose is already installed"
     fi
 }
 
-# Check if required commands are available
+# Check and install required commands if needed
 check_commands() {
     local missing_commands=()
     
@@ -86,11 +96,16 @@ check_commands() {
     done
     
     if [ ${#missing_commands[@]} -gt 0 ]; then
-        print_error "The following commands are required but not installed: ${missing_commands[*]}"
-        print_info "Please install them before running this script"
-        print_info "You can install them using the following command:"
-        echo "apt-get update && apt-get install -y ${missing_commands[*]}"
-        exit 1
+        print_warning "The following commands are required but not installed: ${missing_commands[*]}"
+        if prompt_yes_no "Do you want to install these dependencies?"; then
+            apt-get update && apt-get install -y ${missing_commands[*]}
+            print_success "Dependencies installed successfully"
+        else
+            print_error "These dependencies are required to continue"
+            exit 1
+        fi
+    else
+        print_info "All required dependencies are already installed"
     fi
 }
 
