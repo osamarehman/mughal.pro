@@ -217,7 +217,6 @@ generate_docker_compose() {
     
     # Create docker-compose.yml
     cat > "$output_file" << EOF
-version: '3.8'
 
 services:
   # Caddy reverse proxy
