@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Fix script for container issues
-# This script disables Authelia and fixes other restarting containers
+# This script directly modifies Docker containers to fix restarting issues
 
 # Color codes for output
 RED='\033[0;31m'
@@ -31,173 +31,157 @@ print_error() {
     echo -e "${RED}ERROR:${NC} $1"
 }
 
-# Function to disable Authelia in Docker Compose
+# Function to directly stop Authelia container
 disable_authelia() {
     print_header "Disabling Authelia"
     
-    # Check if Docker Compose file exists
-    if [ ! -f "/opt/docker/docker-compose.yml" ]; then
-        print_error "Docker Compose file not found at /opt/docker/docker-compose.yml"
+    # Check if Authelia container exists
+    if ! docker ps -a | grep -q authelia; then
+        print_error "Authelia container not found"
         return 1
     fi
     
-    # Backup the current Docker Compose file
-    cp /opt/docker/docker-compose.yml /opt/docker/docker-compose.yml.bak
-    print_info "Backed up docker-compose.yml"
+    # Stop and remove the Authelia container
+    docker stop authelia
+    docker rm authelia
     
-    # Comment out the Authelia service in the Docker Compose file
-    sed -i '/# Authelia authentication server/,/proxy/s/^/#/' /opt/docker/docker-compose.yml
-    print_success "Disabled Authelia service in Docker Compose file"
+    print_success "Authelia container stopped and removed"
 }
 
-# Function to update Caddy configuration to remove Authelia authentication
-update_caddy_config() {
-    print_header "Updating Caddy Configuration"
-    
-    # Check if Caddy config file exists
-    if [ ! -f "/opt/docker/data/caddy/config/Caddyfile" ]; then
-        print_error "Caddy config file not found at /opt/docker/data/caddy/config/Caddyfile"
-        return 1
-    fi
-    
-    # Backup the current Caddyfile
-    cp /opt/docker/data/caddy/config/Caddyfile /opt/docker/data/caddy/config/Caddyfile.bak
-    print_info "Backed up Caddyfile"
-    
-    # Remove Authelia-related configuration from Caddyfile
-    # 1. Remove the Authelia reverse proxy block
-    sed -i '/# Reverse proxy for Authelia/,/}/d' /opt/docker/data/caddy/config/Caddyfile
-    
-    # 2. Remove all forward_auth blocks
-    sed -i '/# Authentication with Authelia/,/}/d' /opt/docker/data/caddy/config/Caddyfile
-    
-    # 3. Comment out the Authelia subdomain block
-    sed -i '/authelia\./,/}/s/^/#/' /opt/docker/data/caddy/config/Caddyfile
-    
-    print_success "Updated Caddy configuration to remove Authelia authentication"
-}
-
-# Function to fix Redis configuration
+# Function to fix Redis container
 fix_redis() {
     print_header "Fixing Redis"
     
-    # Check if Redis config directory exists
-    if [ ! -d "/opt/docker/data/redis" ]; then
-        print_error "Redis config directory not found at /opt/docker/data/redis"
+    # Check if Redis container exists
+    if ! docker ps -a | grep -q redis; then
+        print_error "Redis container not found"
         return 1
     fi
     
-    # Backup the current redis.conf
-    cp /opt/docker/data/redis/redis.conf /opt/docker/data/redis/redis.conf.bak
-    print_info "Backed up redis.conf"
+    # Stop and remove the Redis container
+    docker stop redis
+    docker rm redis
     
-    # Create a simpler redis.conf that should work reliably
-    cat > /opt/docker/data/redis/redis.conf << EOF
-# Redis configuration file
-bind 0.0.0.0
-protected-mode no
-port 6379
-dir /data
-EOF
+    # Create a new Redis container with simplified configuration
+    docker run -d \
+        --name redis \
+        --network mughal_proxy \
+        --restart unless-stopped \
+        -e TZ=Asia/Karachi \
+        redis:6 redis-server --appendonly yes --protected-mode no
     
-    print_success "Updated Redis configuration with simplified settings"
+    print_success "Redis container recreated with simplified configuration"
 }
 
-# Function to fix Prometheus configuration
+# Function to fix Prometheus container
 fix_prometheus() {
     print_header "Fixing Prometheus"
     
-    # Check if Prometheus config directory exists
-    if [ ! -d "/opt/docker/data/prometheus/config" ]; then
-        print_error "Prometheus config directory not found at /opt/docker/data/prometheus/config"
+    # Check if Prometheus container exists
+    if ! docker ps -a | grep -q prometheus; then
+        print_error "Prometheus container not found"
         return 1
     fi
     
-    # Ensure Prometheus data directory has correct permissions
-    mkdir -p /opt/docker/data/prometheus/data
-    chmod 777 /opt/docker/data/prometheus/data
+    # Stop and remove the Prometheus container
+    docker stop prometheus
+    docker rm prometheus
     
-    print_success "Fixed Prometheus data directory permissions"
+    # Create a new Prometheus container with default configuration
+    docker run -d \
+        --name prometheus \
+        --network mughal_proxy \
+        --restart unless-stopped \
+        -e TZ=Asia/Karachi \
+        prom/prometheus:latest
+    
+    print_success "Prometheus container recreated with default configuration"
 }
 
-# Function to fix Grafana configuration
+# Function to fix Grafana container
 fix_grafana() {
     print_header "Fixing Grafana"
     
-    # Check if Grafana data directory exists
-    if [ ! -d "/opt/docker/data/grafana/data" ]; then
-        print_error "Grafana data directory not found at /opt/docker/data/grafana/data"
+    # Check if Grafana container exists
+    if ! docker ps -a | grep -q grafana; then
+        print_error "Grafana container not found"
         return 1
     fi
     
-    # Ensure Grafana data directory has correct permissions
-    chmod -R 777 /opt/docker/data/grafana/data
+    # Stop and remove the Grafana container
+    docker stop grafana
+    docker rm grafana
     
-    print_success "Fixed Grafana data directory permissions"
+    # Create a new Grafana container with default configuration
+    docker run -d \
+        --name grafana \
+        --network mughal_proxy \
+        --restart unless-stopped \
+        -e "GF_SECURITY_ADMIN_PASSWORD=7oUP8mSKBiqYU1CgiafX5spsRlORb13LJFUXFkKpSw" \
+        -e "GF_USERS_ALLOW_SIGN_UP=false" \
+        -e TZ=Asia/Karachi \
+        grafana/grafana:latest
+    
+    print_success "Grafana container recreated with default configuration"
 }
 
-# Function to fix Loki configuration
+# Function to fix Loki container
 fix_loki() {
     print_header "Fixing Loki"
     
-    # Check if Loki config directory exists
-    if [ ! -d "/opt/docker/data/loki/config" ]; then
-        print_error "Loki config directory not found at /opt/docker/data/loki/config"
+    # Check if Loki container exists
+    if ! docker ps -a | grep -q loki; then
+        print_error "Loki container not found"
         return 1
     fi
     
-    # Ensure Loki data directory has correct permissions
-    mkdir -p /opt/docker/data/loki/data
-    chmod -R 777 /opt/docker/data/loki/data
+    # Stop and remove the Loki container
+    docker stop loki
+    docker rm loki
     
-    print_success "Fixed Loki data directory permissions"
+    # Create a new Loki container with default configuration
+    docker run -d \
+        --name loki \
+        --network mughal_proxy \
+        --restart unless-stopped \
+        -e TZ=Asia/Karachi \
+        grafana/loki:latest
+    
+    print_success "Loki container recreated with default configuration"
 }
 
-# Function to fix Promtail configuration
+# Function to fix Promtail container
 fix_promtail() {
     print_header "Fixing Promtail"
     
-    # Check if Promtail config directory exists
-    if [ ! -d "/opt/docker/data/loki/config" ]; then
-        print_error "Promtail config directory not found at /opt/docker/data/loki/config"
+    # Check if Promtail container exists
+    if ! docker ps -a | grep -q promtail; then
+        print_error "Promtail container not found"
         return 1
     fi
     
-    # Update Promtail configuration to fix common issues
-    cat > /opt/docker/data/loki/config/promtail-config.yaml << EOF
-server:
-  http_listen_port: 9080
-  grpc_listen_port: 0
-
-positions:
-  filename: /tmp/positions.yaml
-
-clients:
-  - url: http://loki:3100/loki/api/v1/push
-
-scrape_configs:
-  - job_name: system
-    static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: varlogs
-          __path__: /var/log/*log
-EOF
+    # Stop and remove the Promtail container
+    docker stop promtail
+    docker rm promtail
     
-    print_success "Updated Promtail configuration"
+    # Create a new Promtail container with default configuration
+    docker run -d \
+        --name promtail \
+        --network mughal_proxy \
+        --restart unless-stopped \
+        -e TZ=Asia/Karachi \
+        grafana/promtail:latest
+    
+    print_success "Promtail container recreated with default configuration"
 }
 
 # Main function
 main() {
     print_header "Container Fix Script"
-    print_info "This script will disable Authelia and fix other restarting containers"
+    print_info "This script will directly fix restarting containers"
     
-    # Disable Authelia in Docker Compose
+    # Disable Authelia
     disable_authelia
-    
-    # Update Caddy configuration
-    update_caddy_config
     
     # Fix Redis
     fix_redis
@@ -214,17 +198,14 @@ main() {
     # Fix Promtail
     fix_promtail
     
-    print_header "Restarting Containers"
+    print_header "Container Status"
     
-    # Restart containers
-    cd /opt/docker
-    docker-compose down
-    docker-compose up -d
+    # Show container status
+    docker ps -a
     
-    print_success "Containers restarted with Authelia disabled"
-    print_info "Check container status with: docker-compose ps"
-    print_info "Check container logs with: docker-compose logs [service]"
-    print_warning "Note: Authentication is now disabled. Services are accessible without authentication."
+    print_success "Containers fixed"
+    print_info "Check container logs with: docker logs [container_name]"
+    print_warning "Note: Authelia has been disabled. Services are accessible without authentication."
 }
 
 # Run main function

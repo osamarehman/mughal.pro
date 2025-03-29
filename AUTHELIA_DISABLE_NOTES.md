@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document explains the changes made to fix the container issues by disabling Authelia authentication and fixing other restarting containers.
+This document explains the direct container approach to fix the issues with restarting containers by disabling Authelia authentication and recreating problematic containers with simplified configurations.
 
 ## Issues Identified
 
@@ -22,38 +22,27 @@ Based on the logs and container status, the following issues were identified:
 
 ## Solution Approach
 
-Rather than trying to fix Authelia, we've created a script to disable it completely and fix the other restarting containers. This approach:
+Rather than trying to modify configuration files, we've created a script that works directly with the Docker containers:
 
-1. Disables the Authelia service in the Docker Compose file
-2. Removes Authelia authentication from the Caddy configuration
-3. Fixes configuration issues in Redis, Prometheus, Grafana, Loki, and Promtail
+1. Stops and removes the Authelia container completely
+2. Recreates the problematic containers with simplified configurations
+3. Uses direct Docker commands instead of relying on Docker Compose
 
 ## Using the Fix Script
 
-1. Copy the `fix-containers.sh` script to your server:
+1. Make the `fix-containers.sh` script executable:
    ```bash
-   scp fix-containers.sh user@your-server:/tmp/
+   chmod +x fix-containers.sh
    ```
 
-2. SSH into your server:
+2. Run the script with sudo:
    ```bash
-   ssh user@your-server
+   sudo ./fix-containers.sh
    ```
 
-3. Make the script executable:
+3. Check the status of your containers:
    ```bash
-   chmod +x /tmp/fix-containers.sh
-   ```
-
-4. Run the script:
-   ```bash
-   sudo /tmp/fix-containers.sh
-   ```
-
-5. Check the status of your containers:
-   ```bash
-   cd /opt/docker
-   docker-compose ps
+   docker ps -a
    ```
 
 ## What the Script Does
@@ -61,18 +50,20 @@ Rather than trying to fix Authelia, we've created a script to disable it complet
 The script performs the following actions:
 
 1. **Disables Authelia**:
-   - Comments out the Authelia service in the Docker Compose file
-   - Removes Authelia-related configuration from the Caddy configuration
+   - Stops and removes the Authelia container completely
 
 2. **Fixes Redis**:
-   - Creates a simplified Redis configuration that should work reliably
+   - Stops and removes the Redis container
+   - Creates a new Redis container with simplified configuration
+   - Uses `--protected-mode no` to allow connections from any IP
 
 3. **Fixes Prometheus, Grafana, Loki, and Promtail**:
-   - Ensures data directories have correct permissions
-   - Updates configuration files as needed
+   - Stops and removes each container
+   - Creates new containers with default configurations
+   - Sets appropriate environment variables
 
-4. **Restarts all containers**:
-   - Runs `docker-compose down` and `docker-compose up -d` to apply changes
+4. **Shows container status**:
+   - Displays the status of all containers after the changes
 
 ## Security Considerations
 
@@ -92,19 +83,16 @@ The script performs the following actions:
    - If you want to re-enable Authelia in the future, you'll need to:
      - Generate proper Argon2 password hashes
      - Update the Authelia configuration
-     - Restore the Docker Compose and Caddy configurations
+     - Recreate the Authelia container with proper configuration
 
 3. **Monitor container health**:
-   - Regularly check container status with `docker-compose ps`
-   - Review logs with `docker-compose logs [service]`
+   - Regularly check container status with `docker ps -a`
+   - Review logs with `docker logs [container_name]`
    - Set up monitoring alerts for container failures
 
-## Backups
+## Advantages of This Approach
 
-The script creates backups of all modified files:
-
-- `/opt/docker/docker-compose.yml.bak`
-- `/opt/docker/data/caddy/config/Caddyfile.bak`
-- `/opt/docker/data/redis/redis.conf.bak`
-
-If you need to revert changes, you can restore these backup files.
+1. **Direct container manipulation**: Works regardless of where your Docker Compose and configuration files are located
+2. **Simplified configurations**: Uses default or minimal configurations to ensure containers start properly
+3. **No configuration file dependencies**: Doesn't rely on finding and modifying configuration files
+4. **Immediate results**: Changes take effect immediately without needing to rebuild or reconfigure your entire stack
