@@ -187,6 +187,8 @@ generate_argon2_hash() {
     if command -v argon2 &> /dev/null; then
         hash=$(echo -n "$password" | argon2 "$(openssl rand -hex 8)" -id -t 3 -m 16 -p 4 -l 32 -e 2>/dev/null)
         if [ $? -eq 0 ] && [ -n "$hash" ]; then
+            # Escape dollar signs to prevent variable interpolation in Docker Compose
+            hash=$(echo "$hash" | sed 's/\$/\$\$/g')
             echo "$hash"
             return 0
         fi
@@ -197,11 +199,17 @@ generate_argon2_hash() {
     if command -v docker &> /dev/null; then
         # Check if Docker is running
         if docker info &>/dev/null; then
-            hash=$(docker run --rm authelia/authelia:latest authelia crypto hash generate argon2 --password "$password" 2>/dev/null)
-            if [ $? -eq 0 ] && [ -n "$hash" ]; then
+            # Use a temporary file to avoid issues with special characters
+            local temp_file=$(mktemp)
+            docker run --rm authelia/authelia:latest authelia crypto hash generate argon2 --password "$password" > "$temp_file" 2>/dev/null
+            if [ $? -eq 0 ] && [ -s "$temp_file" ]; then
+                # Escape dollar signs to prevent variable interpolation in Docker Compose
+                hash=$(cat "$temp_file" | sed 's/\$/\$\$/g')
+                rm -f "$temp_file"
                 echo "$hash"
                 return 0
             fi
+            rm -f "$temp_file"
             print_warning "Docker method failed for Argon2 hash generation"
         else
             print_warning "Docker is not running, cannot generate Argon2 hash"
@@ -213,7 +221,8 @@ generate_argon2_hash() {
     # Final fallback - use a simple hash if everything else fails
     # This is not as secure but prevents the script from failing
     print_warning "Falling back to simple hash method (less secure)"
-    echo "$(echo -n "${password}$(openssl rand -hex 8)" | sha256sum | awk '{print $1}')"
+    local simple_hash="$(echo -n "${password}$(openssl rand -hex 8)" | sha256sum | awk '{print $1}')"
+    echo "$simple_hash"
 }
 
 # These functions have been moved to their respective files:
