@@ -271,6 +271,7 @@ EOF
       - $DATA_DIR/authelia/config:/config
     environment:
       - TZ=$TIMEZONE
+      - STORAGE_ENCRYPTION_KEY=\${STORAGE_ENCRYPTION_KEY}
     networks:
       - proxy
 EOF
@@ -1019,6 +1020,7 @@ TZ=$TIMEZONE
 
 # Authelia
 JWT_SECRET="$JWT_SECRET"
+STORAGE_ENCRYPTION_KEY="$STORAGE_ENCRYPTION_KEY"
 
 # MariaDB
 EOF

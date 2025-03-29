@@ -211,6 +211,7 @@ generate_authelia_config() {
     local user_user=$6
     local user_hash=$7
     local email=$8
+    local storage_encryption_key=$STORAGE_ENCRYPTION_KEY
     
     # Create configuration.yml
     cat > "$config_dir/configuration.yml" << EOF
@@ -275,6 +276,7 @@ regulation:
 storage:
   local:
     path: /config/db.sqlite3
+  encryption_key: ${STORAGE_ENCRYPTION_KEY}
 
 notifier:
   filesystem:

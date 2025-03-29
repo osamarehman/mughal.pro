@@ -36,6 +36,10 @@ generate_credentials() {
     JWT_SECRET=$(generate_token)
     print_info "JWT secret generated"
     
+    # Generate storage encryption key for Authelia
+    STORAGE_ENCRYPTION_KEY=$(generate_token)
+    print_info "Storage encryption key generated"
+    
     # Generate admin password
     ADMIN_PASSWORD=$(prompt_password "Enter admin password")
     print_info "Admin password set"
@@ -145,6 +149,7 @@ ADMIN_PASSWORD="$ADMIN_PASSWORD"
 USER_USER="user"
 USER_PASSWORD="$USER_PASSWORD"
 JWT_SECRET="$JWT_SECRET"
+STORAGE_ENCRYPTION_KEY="$STORAGE_ENCRYPTION_KEY"
 
 EOF
     
