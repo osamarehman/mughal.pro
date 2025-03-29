@@ -69,7 +69,7 @@ validate_password() {
           "$password" == *")"* || "$password" == *"{"* || "$password" == *"}"* || 
           "$password" == *"["* || "$password" == *"]"* || "$password" == *"$"* || 
           "$password" == *"#"* || "$password" == *"!"* || "$password" == *"~"* || 
-          "$password" == *"`"* ]]; then
+          "$password" == *"\`"* ]]; then
         return 1
     fi
     
