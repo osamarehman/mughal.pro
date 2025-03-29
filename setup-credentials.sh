@@ -122,3 +122,84 @@ generate_credentials() {
         print_info "WireGuard internal subnet: $INTERNAL_SUBNET"
     fi
 }
+
+# Function to save credentials to a file
+save_credentials() {
+    print_header "Saving Credentials"
+    
+    # Create credentials file
+    cat > "$DATA_DIR/credentials.txt" << EOF
+# Server Credentials
+# Generated on $(date)
+# KEEP THIS FILE SECURE!
+
+# Domain
+DOMAIN=$DOMAIN
+EMAIL=$EMAIL
+
+# Authelia
+ADMIN_USER=admin
+ADMIN_PASSWORD=$ADMIN_PASSWORD
+USER_USER=user
+USER_PASSWORD=$USER_PASSWORD
+JWT_SECRET=$JWT_SECRET
+
+EOF
+    
+    # Add service-specific credentials
+    if $ENABLE_MARIADB; then
+        cat >> "$DATA_DIR/credentials.txt" << EOF
+# MariaDB
+MARIADB_ROOT_PASSWORD=$MARIADB_ROOT_PASSWORD
+MARIADB_USER=$MARIADB_USER
+MARIADB_PASSWORD=$MARIADB_PASSWORD
+MARIADB_DATABASE=$MARIADB_DATABASE
+
+EOF
+    fi
+    
+    if $ENABLE_POSTGRES; then
+        cat >> "$DATA_DIR/credentials.txt" << EOF
+# PostgreSQL
+POSTGRES_USER=$POSTGRES_USER
+POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+POSTGRES_DB=$POSTGRES_DB
+
+EOF
+    fi
+    
+    if $ENABLE_VAULTWARDEN; then
+        cat >> "$DATA_DIR/credentials.txt" << EOF
+# Vaultwarden
+VAULTWARDEN_ADMIN_TOKEN=$VAULTWARDEN_ADMIN_TOKEN
+
+EOF
+    fi
+    
+    if $ENABLE_GRAFANA; then
+        cat >> "$DATA_DIR/credentials.txt" << EOF
+# Grafana
+GF_SECURITY_ADMIN_PASSWORD=$GF_SECURITY_ADMIN_PASSWORD
+
+EOF
+    fi
+    
+    if $ENABLE_DOCMOST; then
+        cat >> "$DATA_DIR/credentials.txt" << EOF
+# DocMost
+APP_SECRET=$APP_SECRET
+POSTGRES_URL=$POSTGRES_URL
+REDIS_URL=$REDIS_URL
+
+EOF
+    fi
+    
+    # Set secure permissions on credentials file
+    chmod 600 "$DATA_DIR/credentials.txt"
+    chown $SUDO_USER:$SUDO_USER "$DATA_DIR/credentials.txt"
+    
+    print_success "Credentials saved to $DATA_DIR/credentials.txt"
+    print_warning "SECURITY NOTICE: This file contains sensitive information in plaintext."
+    print_warning "Consider encrypting or securely deleting this file after setup."
+    print_warning "For production use, consider using Docker secrets or a secrets management tool."
+}

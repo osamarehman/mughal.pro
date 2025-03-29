@@ -98,7 +98,7 @@ main() {
     declare -A CPU_LIMITS
     
     # Prompt for resource limits for each service
-    prompt_resource_limits_for_services
+    prompt_resource_limits
     
     # Generate credentials
     print_header "Generating Credentials"
