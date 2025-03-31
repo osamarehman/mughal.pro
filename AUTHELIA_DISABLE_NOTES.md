@@ -1,98 +1,196 @@
-# Authelia Disabling and Container Troubleshooting
+# Authelia Authentication Notes
 
-## Overview
+This document provides information about Authelia authentication issues and how to disable Authelia if needed.
 
-This document explains the direct container approach to fix the issues with restarting containers by disabling Authelia authentication and recreating problematic containers with simplified configurations.
+## Understanding Authelia
 
-## Issues Identified
+Authelia is an open-source authentication and authorization server that provides single sign-on (SSO) capabilities for web applications. It acts as a portal in front of your applications, adding an authentication layer that protects your services.
 
-Based on the logs and container status, the following issues were identified:
+## Common Authelia Issues
 
-1. **Authelia**: Failed to start due to invalid password hash format
-   ```
-   error="error decoding the authentication database: error occurred decoding the password hash for 'admin': provided encoded hash has an invalid identifier: the identifier '' is unknown to the global decoder"
-   ```
+### Invalid Password Hash
 
-2. **Other restarting containers**:
-   - prometheus
-   - grafana
-   - redis
-   - loki
-   - promtail
+The most common issue with Authelia is an invalid password hash format. This can happen when:
 
-## Solution Approach
+- The password hash is not in the correct format
+- The password hash is corrupted
+- The password hash is missing
 
-Rather than trying to modify configuration files, we've created a script that works directly with the Docker containers:
+Error message example:
+```
+error decoding the authentication database: error occurred decoding the password hash for 'admin': provided encoded hash has an invalid identifier: the identifier '' is unknown to the global decoder
+```
 
-1. Stops and removes the Authelia container completely
-2. Recreates the problematic containers with simplified configurations
-3. Uses direct Docker commands instead of relying on Docker Compose
+### Redis Connection Issues
 
-## Using the Fix Script
+Authelia uses Redis for session storage. If Redis is not running or not accessible, Authelia will fail to start.
 
-1. Make the `fix-containers.sh` script executable:
-   ```bash
-   chmod +x fix-containers.sh
-   ```
+Error message example:
+```
+error connecting to redis: dial tcp: lookup redis on X.X.X.X:53: no such host
+```
 
-2. Run the script with sudo:
-   ```bash
-   sudo ./fix-containers.sh
-   ```
+### Configuration Issues
 
-3. Check the status of your containers:
-   ```bash
-   docker ps -a
-   ```
+Authelia has a complex configuration file that can be prone to syntax errors or invalid settings.
 
-## What the Script Does
+Error message example:
+```
+configuration key 'jwt_secret' is deprecated in 4.38.0 and has been replaced by 'identity_validation.reset_password.jwt_secret'
+```
 
-The script performs the following actions:
+## Disabling Authelia
 
-1. **Disables Authelia**:
-   - Stops and removes the Authelia container completely
+If you're experiencing issues with Authelia and want to disable it temporarily, follow these steps:
 
-2. **Fixes Redis**:
-   - Stops and removes the Redis container
-   - Creates a new Redis container with simplified configuration
-   - Uses `--protected-mode no` to allow connections from any IP
+### 1. Remove Authelia from Docker Compose
 
-3. **Fixes Prometheus, Grafana, Loki, and Promtail**:
-   - Stops and removes each container
-   - Creates new containers with default configurations
-   - Sets appropriate environment variables
+Edit your Docker Compose file and comment out or remove the Authelia service:
 
-4. **Shows container status**:
-   - Displays the status of all containers after the changes
+```yaml
+# authelia:
+#   image: authelia/authelia:latest
+#   container_name: authelia
+#   restart: unless-stopped
+#   ...
+```
 
-## Security Considerations
+### 2. Remove Authelia Authentication from Caddy
 
-**Important**: By disabling Authelia, your services will no longer have authentication protection. This means:
+Edit your Caddyfile and remove any Authelia authentication directives:
 
-- Anyone with access to your server's IP/domain can access your services
-- There is no single sign-on or access control
-- You should consider this a temporary solution until proper authentication can be implemented
+```
+# Remove lines like these:
+# forward_auth authelia:9091 {
+#   uri /api/verify?rd=https://auth.example.com
+# }
+```
 
-## Future Steps
+You can use the `fix-caddy-auth.sh` script to automatically remove Authelia authentication directives from your Caddy configuration:
 
-1. **Implement alternative authentication**:
-   - Consider using basic authentication in Caddy for simple protection
-   - Look into other authentication solutions like Traefik Forward Auth or OAuth2 Proxy
+```bash
+sudo ./fix-caddy-auth.sh
+```
 
-2. **Fix Authelia properly**:
-   - If you want to re-enable Authelia in the future, you'll need to:
-     - Generate proper Argon2 password hashes
-     - Update the Authelia configuration
-     - Recreate the Authelia container with proper configuration
+### 3. Restart Caddy
 
-3. **Monitor container health**:
-   - Regularly check container status with `docker ps -a`
-   - Review logs with `docker logs [container_name]`
-   - Set up monitoring alerts for container failures
+After removing Authelia authentication directives, restart the Caddy container:
 
-## Advantages of This Approach
+```bash
+docker restart caddy
+```
 
-1. **Direct container manipulation**: Works regardless of where your Docker Compose and configuration files are located
-2. **Simplified configurations**: Uses default or minimal configurations to ensure containers start properly
-3. **No configuration file dependencies**: Doesn't rely on finding and modifying configuration files
-4. **Immediate results**: Changes take effect immediately without needing to rebuild or reconfigure your entire stack
+### 4. Verify Authentication is Disabled
+
+Access your services directly to verify that authentication is no longer required.
+
+## Re-enabling Authelia
+
+If you want to re-enable Authelia after fixing the issues:
+
+### 1. Fix Authelia Configuration
+
+If the issue was with the password hash, you can use the `fix-authelia-hash.sh` script:
+
+```bash
+sudo ./fix-authelia-hash.sh
+```
+
+This script will:
+- Create a new password hash for the admin user
+- Update the Authelia configuration file with the new hash
+- Restart the Authelia container
+
+### 2. Uncomment Authelia in Docker Compose
+
+Edit your Docker Compose file and uncomment the Authelia service:
+
+```yaml
+authelia:
+  image: authelia/authelia:latest
+  container_name: authelia
+  restart: unless-stopped
+  ...
+```
+
+### 3. Add Authelia Authentication to Caddy
+
+Edit your Caddyfile and add Authelia authentication directives where needed:
+
+```
+forward_auth authelia:9091 {
+  uri /api/verify?rd=https://auth.example.com
+}
+```
+
+### 4. Restart Containers
+
+Restart the affected containers:
+
+```bash
+docker-compose up -d
+```
+
+## Alternative Authentication Methods
+
+If you decide not to use Authelia, there are alternative authentication methods you can consider:
+
+### 1. Basic Authentication in Caddy
+
+You can use Caddy's built-in basic authentication:
+
+```
+basicauth {
+  user $2a$14$YOUR_HASHED_PASSWORD
+}
+```
+
+### 2. Traefik with Forward Auth
+
+If you're using Traefik instead of Caddy, you can configure forward authentication.
+
+### 3. Application-Level Authentication
+
+Rely on the built-in authentication mechanisms of your applications.
+
+## Troubleshooting Authelia
+
+If you want to continue using Authelia but need to troubleshoot issues:
+
+### 1. Check Authelia Logs
+
+```bash
+docker logs authelia
+```
+
+### 2. Verify Redis Connection
+
+Ensure Redis is running and accessible to Authelia:
+
+```bash
+docker ps | grep redis
+docker logs redis
+```
+
+### 3. Check Network Connectivity
+
+Ensure Authelia and Redis are on the same network:
+
+```bash
+docker inspect --format '{{range $key, $value := .NetworkSettings.Networks}}{{$key}} {{end}}' authelia
+docker inspect --format '{{range $key, $value := .NetworkSettings.Networks}}{{$key}} {{end}}' redis
+```
+
+### 4. Validate Configuration
+
+Check the Authelia configuration file for syntax errors:
+
+```bash
+docker exec -it authelia authelia validate-config
+```
+
+## Conclusion
+
+Authelia provides robust authentication for your services, but it can be complex to configure and troubleshoot. If you're experiencing issues, you can temporarily disable Authelia using the steps outlined in this document.
+
+For more comprehensive troubleshooting, refer to the [DOCKER_TROUBLESHOOTING_SOLUTION.md](DOCKER_TROUBLESHOOTING_SOLUTION.md) document and use the provided scripts to automate the troubleshooting process.

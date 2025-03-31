@@ -357,11 +357,13 @@ maxmemory 256mb
 maxmemory-policy allkeys-lru
 
 # Security
-requirepass ""  # No password by default, set in environment if needed
+# No password by default, set in environment if needed
+requirepass ""
 
 # Logging
 loglevel notice
-logfile ""  # Log to stdout
+# Log to stdout
+logfile ""
 EOF
     
     print_success "Redis configuration generated at $redis_dir/redis.conf"

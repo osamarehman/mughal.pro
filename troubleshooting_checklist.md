@@ -1,235 +1,348 @@
-# Server Automation Troubleshooting Checklist
+# Docker Container Troubleshooting Checklist
 
-This checklist tracks progress on troubleshooting and fixing issues with the server automation scripts and Docker applications. Use this to keep track of completed tasks and what still needs to be done.
+This document provides a step-by-step checklist for troubleshooting common Docker container issues in your setup.
 
-## Initial Analysis
+## Quick Reference
 
-- [x] Review log files to identify issues
-- [x] Document identified problems in server_analysis_and_plan.md
-- [x] Create troubleshooting plan
+| Issue | Solution | Script |
+|-------|----------|--------|
+| Container name conflicts | Clean up Docker environment | `cleanup-docker.sh` |
+| Authelia password hash issues | Fix hash generation | `fix-authelia-hash.sh` |
+| Redis configuration issues | Fix Redis config | `fix-redis-config.sh` or `radis-fix.sh` |
+| Caddy authentication issues | Remove auth directives | `fix-caddy-auth.sh` |
+| Network issues with containers | Fix network configuration | `fix-containers.sh` |
+| General configuration issues | Check all configs | `check-container-configs.sh` |
+| Restarting containers | Proper restart commands | See "Restarting Containers" section |
+| Container logs | How to check logs | See "Checking Container Logs" section |
 
-## Environment Setup
+## Container Name Conflicts
 
-- [x] Set up Ubuntu test environment
-  - [x] Install Docker and Docker Compose
-  - [x] Create directory structure
-  - [x] Copy configuration files
-  - [x] Create Docker Compose file
-  - [x] Configure Caddy
-  - [x] Start services
+**Symptoms:**
+- Error message: `Error response from daemon: Conflict. The container name "/container_name" is already in use`
+- Containers in "Created" state but not running
 
-## DNS Resolution Issues
+**Solution:**
+1. Run the cleanup script:
+   ```bash
+   chmod +x cleanup-docker.sh
+   sudo ./cleanup-docker.sh
+   ```
+2. Answer `y` to remove containers and networks
+3. Answer `n` to keep your data volumes (unless you want to start completely fresh)
+4. Run your setup script again:
+   ```bash
+   sudo ./setup.sh
+   ```
 
-- [x] Fix Docker Compose configuration
-  - [x] Ensure all services referenced in Caddy are defined in Docker Compose
-  - [x] Verify all services are on the same network
-  - [x] Check container names match what's expected in Caddy
-- [x] Test DNS resolution between containers
-  - [x] Use `docker exec <container> ping <service>` to test connectivity
-  - [x] Check Docker network configuration with `docker network inspect`
+## Authelia Password Hash Issues
 
-## Container Configuration
+**Symptoms:**
+- Authelia container keeps restarting
+- Error in logs: `error decoding the authentication database: error occurred decoding the password hash for 'admin': provided encoded hash has an invalid identifier`
 
-- [x] Add all required containers to Docker Compose
-  - [x] code-server
-  - [x] homeassistant
-  - [x] owncloud
-  - [x] portainer
-  - [x] prometheus
-  - [x] redis
-  - [x] loki
-  - [x] borgmatic
-  - [x] wireguard
-  - [x] ittools
-- [x] Implement health checks for all services
-- [x] Verify containers start successfully
-  - [x] Check with `docker compose ps`
-  - [x] Review logs with `docker compose logs`
+**Solution:**
+1. Fix the hash generation in the setup script:
+   ```bash
+   chmod +x fix-authelia-hash.sh
+   ./fix-authelia-hash.sh
+   ```
+2. Clean up Docker environment:
+   ```bash
+   sudo ./cleanup-docker.sh
+   ```
+3. Run the setup script again:
+   ```bash
+   sudo ./setup.sh
+   ```
 
-## Service Configuration
+## Redis Configuration Issues
 
-### DocMost Configuration
+**Symptoms:**
+- Redis container keeps restarting
+- Error in logs: `*** FATAL CONFIG FILE ERROR (Redis 6.2.17) *** Reading the configuration file, at line 24 >>> 'requirepass ""  # No password by default, set in environment if needed' wrong number of arguments`
 
-- [x] Fix DocMost environment variables
-  - [x] Set valid DATABASE_URL
-  - [x] Set valid REDIS_URL
-- [x] Ensure PostgreSQL container is running
-- [x] Ensure Redis container is running
-- [x] Test DocMost functionality
+**Solution:**
+1. Fix the Redis configuration file:
+   ```bash
+   chmod +x fix-redis-config.sh
+   sudo ./fix-redis-config.sh
+   ```
+   or if you have the alternative script:
+   ```bash
+   chmod +x radis-fix.sh
+   sudo ./radis-fix.sh
+   ```
+2. Clean up Docker environment:
+   ```bash
+   sudo ./cleanup-docker.sh
+   ```
+3. Run the setup script again:
+   ```bash
+   sudo ./setup.sh
+   ```
 
-### Database Configuration
+**Prevention:**
+- Redis doesn't support comments on the same line as configuration directives
+- Always place comments on separate lines in Redis configuration files
 
-- [x] Update MariaDB configuration
-  - [x] Set secure root password
-  - [x] Create necessary databases and users
-- [x] Update PostgreSQL configuration
-  - [x] Set secure user password
-  - [x] Create necessary databases
-- [x] Update applications using databases with correct credentials
-- [x] Test database connections
+## Caddy Authentication Issues
 
-### Security Configuration
+**Symptoms:**
+- Still being prompted for authentication even after disabling Authelia
+- Authentication-related errors in Caddy logs
+- Unable to access services due to authentication prompts
 
-- [x] Generate secure admin tokens and passwords
-  - [x] Use secure password generation for all services
-  - [x] Generate Vaultwarden admin token
-- [x] Update service configurations with secure credentials
-- [x] Test admin interfaces
+**Solution:**
+1. Fix the Caddy configuration to remove authentication directives:
+   ```bash
+   chmod +x fix-caddy-auth.sh
+   sudo ./fix-caddy-auth.sh
+   ```
+2. If issues persist, check Docker Compose configuration for Authelia references:
+   ```bash
+   grep -r "authelia" /opt/docker/compose/
+   ```
+3. Restart Caddy container:
+   ```bash
+   docker restart caddy
+   ```
 
-### Authelia Implementation
+## Network Issues with Monitoring Containers
 
-- [x] Set up Authelia
-  - [x] Run authelia_setup_script.sh to generate configurations
-  - [x] Add Authelia to Docker Compose
-  - [x] Update Caddy configuration
-- [x] Test Authelia authentication
-  - [x] Access protected service
-  - [x] Verify redirect to Authelia login
-  - [x] Test login with generated credentials
-  - [x] Verify redirect back to service after authentication
+**Symptoms:**
+- Prometheus, Grafana, Loki, or Promtail containers keep restarting
+- Network-related errors in container logs
+- Error about network "compose_monitoringcompose_proxy" not found
 
-## Service Verification
+**Solution:**
+1. Run the comprehensive container fix script:
+   ```bash
+   chmod +x fix-containers.sh
+   sudo ./fix-containers.sh
+   ```
+2. This script will:
+   - Fix network configuration for monitoring containers
+   - Create the correct networks if they don't exist
+   - Recreate containers with proper configuration
+   - Check container status after fixes
 
-- [x] Verify all services are running
-  - [x] caddy
-  - [x] authelia
-  - [x] mariadb
-  - [x] postgres
-  - [x] redis
-  - [x] vaultwarden
-  - [x] grafana
-  - [x] prometheus
-  - [x] docmost
-  - [x] code-server
-  - [x] homeassistant
-  - [x] owncloud
-  - [x] portainer
-  - [x] ittools
-  - [x] loki
-  - [x] borgmatic
-  - [x] wireguard
-- [x] Check service logs for errors
-- [x] Test accessing services through Caddy
+## Checking Container Status
 
-## Production Deployment
+**Commands:**
+- List all containers (running and stopped):
+  ```bash
+  docker ps -a
+  ```
+- List only running containers:
+  ```bash
+  docker ps
+  ```
+- Check container details:
+  ```bash
+  docker inspect <container_name>
+  ```
 
-- [ ] Back up current production configuration
-- [ ] Apply fixes to production environment
-  - [ ] Update Docker Compose file
-  - [ ] Update service configurations
-  - [ ] Implement Authelia
-  - [ ] Restart services
-- [ ] Verify production services
+**What to Look For:**
+- **Status**: Should be "Up" for running containers
+- **Health**: Should be "healthy" if health checks are configured
+- **Restart Count**: High restart counts indicate recurring issues
 
-## Monitoring and Maintenance
+## Checking Container Logs
 
-- [x] Set up monitoring
-  - [x] Configure Prometheus
-  - [x] Set up Grafana dashboards
-  - [x] Implement Loki for log aggregation
-  - [x] Configure alerting
-- [x] Establish maintenance procedures
-  - [x] Regular updates
-  - [x] Backups with Borgmatic
-  - [x] Log monitoring with Loki
-  - [x] Log rotation
+**Commands:**
+- View logs for a specific container:
+  ```bash
+  docker logs <container_name>
+  ```
+- View the last N lines of logs:
+  ```bash
+  docker logs --tail=100 <container_name>
+  ```
+- Follow logs in real-time:
+  ```bash
+  docker logs -f <container_name>
+  ```
 
-## Documentation
+**Common Log Issues:**
+- **Permission errors**: Check volume mount permissions
+- **Configuration errors**: Check configuration files
+- **Network errors**: Check network connectivity between containers
+- **Resource constraints**: Check if container is running out of memory or CPU
 
-- [x] Create authelia_setup.md
-- [x] Create authelia_setup_script.sh
-- [x] Create ubuntu_test_environment_setup.md
-- [x] Create server_analysis_and_plan.md
-- [x] Create troubleshooting_checklist.md (this document)
-- [x] Create README.md with project overview
-- [x] Create MODIFYING_APPS.md with customization guide
-- [x] Document final configuration
-- [x] Create maintenance guide
+## Restarting Containers
 
-## Reference Documents
+**Individual Container:**
+- Restart a single container:
+  ```bash
+  docker restart <container_name>
+  ```
 
-- [README.md](README.md) - Project overview and quick start guide
-- [MODIFYING_APPS.md](MODIFYING_APPS.md) - Guide for customizing services
-- [Authelia Setup Guide](authelia_setup.md) - Detailed instructions for setting up Authelia
-- [Authelia Setup Script](authelia_setup_script.sh) - Script to automate Authelia setup
-- [Ubuntu Test Environment Setup](ubuntu_test_environment_setup.md) - Guide for setting up a test environment
-- [Server Analysis and Plan](server_analysis_and_plan.md) - Analysis of issues and troubleshooting plan
-- [Migration Script](migration_script.sh) - Script to automate migration and fixes
+**All Containers:**
+- Using Docker Compose:
+  ```bash
+  cd /opt/docker/compose
+  docker-compose down
+  docker-compose up -d
+  ```
 
-## Common Issues and Solutions
+**Recreate a Single Container:**
+- Stop and remove the container:
+  ```bash
+  docker stop <container_name>
+  docker rm <container_name>
+  ```
+- Create a new container (example for Redis):
+  ```bash
+  docker run -d \
+      --name redis \
+      --network compose_proxy \
+      --restart unless-stopped \
+      -e TZ=Etc/UTC \
+      redis:6 redis-server --appendonly yes --protected-mode no
+  ```
 
-### Container Startup Issues
+## Network Issues
 
-- **Issue**: Container fails to start
-  - **Solution**: Check logs with `docker compose logs <service>`, verify configuration files, ensure dependencies are running
+**Symptoms:**
+- Containers can't communicate with each other
+- "Connection refused" errors in logs
 
-### Network Connectivity Issues
+**Checks:**
+1. Verify networks exist:
+   ```bash
+   docker network ls
+   ```
+2. Check which network a container is connected to:
+   ```bash
+   docker inspect -f '{{range $key, $value := .NetworkSettings.Networks}}{{$key}} {{end}}' <container_name>
+   ```
+3. Ensure containers that need to communicate are on the same network
 
-- **Issue**: Services can't communicate with each other
-  - **Solution**: Verify services are on the same network, check Docker network configuration, test connectivity with ping
+**Solution:**
+- Connect a container to a network:
+  ```bash
+  docker network connect <network_name> <container_name>
+  ```
+- Create a missing network:
+  ```bash
+  docker network create <network_name>
+  ```
 
-### Database Connection Issues
+## Volume Issues
 
-- **Issue**: Application can't connect to database
-  - **Solution**: Verify database credentials, check database logs, ensure database service is healthy
+**Symptoms:**
+- Permission denied errors in logs
+- Missing data
+- Container can't write to mounted volumes
 
-### Authentication Issues
+**Checks:**
+1. List volumes:
+   ```bash
+   docker volume ls
+   ```
+2. Inspect a volume:
+   ```bash
+   docker volume inspect <volume_name>
+   ```
+3. Check permissions on the host:
+   ```bash
+   ls -la /opt/docker/data/<service>
+   ```
 
-- **Issue**: Authelia authentication not working
-  - **Solution**: Check Authelia logs, verify configuration, ensure Caddy is properly configured for authentication
+**Solution:**
+- Fix permissions:
+  ```bash
+  sudo chown -R 1000:1000 /opt/docker/data/<service>
+  # or
+  sudo chmod -R 777 /opt/docker/data/<service>  # Less secure but works for testing
+  ```
 
-### Resource Limitation Issues
+## Configuration Issues
 
-- **Issue**: Service crashes due to resource constraints
-  - **Solution**: Adjust memory and CPU limits in Docker Compose file, monitor resource usage
+**Symptoms:**
+- Container starts but doesn't work as expected
+- Configuration errors in logs
 
-### Backup Issues
+**Checks:**
+1. Verify configuration files exist:
+   ```bash
+   ls -la /opt/docker/data/<service>/config/
+   ```
+2. Check configuration file content:
+   ```bash
+   cat /opt/docker/data/<service>/config/<config_file>
+   ```
 
-- **Issue**: Borgmatic backups failing
-  - **Solution**: Check Borgmatic logs, verify configuration, ensure backup destination is accessible
+**Solution:**
+- Recreate configuration files from templates
+- Restore from backups
+- Run the setup script again with the correct parameters
 
-### SSL/TLS Issues
+## Preventive Measures
 
-- **Issue**: SSL certificates not being issued
-  - **Solution**: Check Caddy logs, verify domain DNS settings, ensure ports 80 and 443 are accessible
+1. **Regular Backups**:
+   - Back up your Docker volumes regularly
+   - Document your container configurations
 
-## Notes
+2. **Monitoring**:
+   - Set up monitoring for container health
+   - Configure alerts for container restarts
 
-Use this section to add notes about progress, issues encountered, or additional tasks that need to be done.
+3. **Documentation**:
+   - Keep a record of all customizations
+   - Document troubleshooting steps specific to your setup
 
-- All scripts have been completed and tested in a development environment
-- Health checks have been implemented for all services to improve reliability
-- Monitoring and logging solutions are in place with Prometheus, Grafana, and Loki
-- Backup solution is configured with Borgmatic
-- Next step is to deploy to production and verify functionality
+4. **Updates**:
+   - Keep Docker and container images updated
+   - Test updates in a staging environment first
 
-## How to Use This Checklist
+## Advanced Troubleshooting
 
-1. Check off items as they are completed
-2. Add notes about progress or issues
-3. Refer to the reference documents for detailed instructions
-4. Update the checklist as new tasks are identified
+If the above steps don't resolve your issues:
 
-This checklist is a living document and should be updated as the troubleshooting and fixing process progresses.
+1. **Check Docker Engine Logs**:
+   ```bash
+   sudo journalctl -u docker
+   ```
 
-## Testing Procedure
+2. **Check System Resources**:
+   ```bash
+   df -h  # Disk space
+   free -m  # Memory
+   top  # CPU and memory usage
+   ```
 
-1. Clone the repository to a test environment
-2. Run the setup script: `./setup.sh`
-3. Follow the prompts to configure the server
-4. Verify all services start correctly
-5. Test accessing each service through its subdomain
-6. Test authentication with Authelia
-7. Test backup functionality
-8. Check monitoring and logging
+3. **Check for Docker Updates**:
+   ```bash
+   sudo apt update
+   sudo apt list --upgradable | grep docker
+   ```
 
-## Production Deployment Procedure
+4. **Restart Docker Service**:
+   ```bash
+   sudo systemctl restart docker
+   ```
 
-1. Back up the current production environment
-2. Clone the repository to the production server
-3. Run the setup script: `./setup.sh`
-4. Follow the prompts to configure the server
-5. Verify all services start correctly
-6. Test accessing each service through its subdomain
-7. Set up monitoring alerts
-8. Configure regular backups
+5. **Check Docker Info**:
+   ```bash
+   docker info
+   ```
+
+## Comprehensive Fix Script
+
+If you're experiencing multiple issues with your containers, you can use the comprehensive fix script to address common problems:
+
+```bash
+chmod +x fix-containers.sh
+sudo ./fix-containers.sh
+```
+
+This script will:
+- Fix Redis configuration issues
+- Fix Authelia hash issues
+- Optionally disable Authelia authentication
+- Fix network issues with monitoring containers
+- Recreate problematic containers with proper configuration
+- Check container status after fixes
+
+Remember: Always back up your data before making significant changes to your Docker environment.
